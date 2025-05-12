@@ -150,15 +150,19 @@ __forceinline__ __device__ bool in_frustum2(
 	const float* patchbbox,
 	bool prefiltered)
 {
-
+	// this is for rasterization
 	// if ((p_proj.x < -1.3 || p_proj.x > 1.3 || p_proj.y < -1.3 || p_proj.y > 1.3))
 	// 	printf("p_proj out of frustum! %.8f, %.8f, %.8f\n", p_proj.x, p_proj.y, p_proj.z);
 	// float expand = 1.1;
 	// if (p_view.z < 0 || ((p_proj.x < -expand || p_proj.x > expand || p_proj.y < -expand || p_proj.y > expand)))
-	float x0 = patchbbox[1], y0 = patchbbox[0], x1 = patchbbox[3], y1 = patchbbox[2];
+	
+	float x0 = patchbbox[1], y0 = patchbbox[0], x1 = patchbbox[3], y1 = patchbbox[2]; 
 	float w = x1 - x0, h = y1 - y0;
-	float expand = 0.2;
-	if (p_view.z < 0 || p_pix.x < x0 - w * expand || p_pix.x >= x1 + w * expand || p_pix.y < y0 - h * expand || p_pix.y >= y1 + h * expand)
+	
+	// printf("x0, x1, y0, y1: %.8f, %.8f, %.8f, %.8f\n", x0, x1, y0, y1);
+
+	float expand = 0.05; // float expand = 0.2; // 0.15 equal to 1.3, 0.025 equal to 1.05
+	if (p_view.z < 0.01 || p_pix.x < x0 - w * expand || p_pix.x >= x1 + w * expand || p_pix.y < y0 - h * expand || p_pix.y >= y1 + h * expand)
 	{
 		if (prefiltered)
 		{
@@ -170,22 +174,28 @@ __forceinline__ __device__ bool in_frustum2(
 	return true;
 }
 
-__forceinline__ __device__ bool in_frustum(
-	float3& p_view,
-	float3& p_proj, 
-	float2& p_pix, 
-	const float* patchbbox,
-	bool prefiltered)
+__forceinline__ __device__ bool in_frustum(int idx,
+	const float* orig_points,
+	const float* viewmatrix,
+	const float* projmatrix,
+	bool prefiltered,
+	float3& p_view)
 {
+	// this is for visibility check
+	float3 p_orig = { orig_points[3 * idx], orig_points[3 * idx + 1], orig_points[3 * idx + 2] };
 
-	// if ((p_proj.x < -1.3 || p_proj.x > 1.3 || p_proj.y < -1.3 || p_proj.y > 1.3))
-	// 	printf("p_proj out of frustum! %.8f, %.8f, %.8f\n", p_proj.x, p_proj.y, p_proj.z);
-	// float expand = 1.1;
-	// if (p_view.z < 0 || ((p_proj.x < -expand || p_proj.x > expand || p_proj.y < -expand || p_proj.y > expand)))
-	float x0 = patchbbox[1], y0 = patchbbox[0], x1 = patchbbox[3], y1 = patchbbox[2];
-	float w = x1 - x0, h = y1 - y0;
-	float expand = 0.2;
-	if (p_view.z < 0 || p_pix.x < x0 - w * expand || p_pix.x >= x1 + w * expand || p_pix.y < y0 - h * expand || p_pix.y >= y1 + h * expand)
+	// Bring points to screen space
+	float4 p_hom = transformPoint4x4(p_orig, projmatrix);
+	float p_w = 1.0f / (p_hom.w + 0.0000001f);
+	float3 p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w };
+	p_view = transformPoint4x3(p_orig, viewmatrix);
+
+	// TODO: p_proj part are off for original 3D GS
+	float wider_range = 1.05f;
+	// wider_range = 1.3f;
+
+	if ((p_view.z <= 0.1f) || (p_proj.x < -wider_range) || (p_proj.x > wider_range) || (p_proj.y < -wider_range) || (p_proj.y > wider_range)
+	)
 	{
 		if (prefiltered)
 		{

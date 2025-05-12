@@ -264,7 +264,6 @@ __global__ void preprocessCUDA(int P, int D, int M,
 
 	bool surface = config[0] > 0, pix_depth = config[2] > 0;// apply_cutoff = config[4] > 0, update_cutoff = config[5] > 0;
 	bool front_only = config[4] > 0;
-
 	float3 n_view;
 
 	if (surface) {
@@ -404,6 +403,7 @@ renderCUDA(
 	float* __restrict__ out_normal,
 	float* __restrict__ out_depth,
 	float* __restrict__ out_opac,
+	float * __restrict__ contributions,
 	// float* __restrict__ out_rayVar,
 	float* config)
 {
@@ -581,9 +581,12 @@ renderCUDA(
 			for (int ch = 0; ch < CHANNELS; ch++) C[ch] += collected_feature[ch * BLOCK_SIZE + j] * w;
 			
 			if (surface) for (int ch = 0; ch < 3; ch++) N[ch] += collected_normal[ch * BLOCK_SIZE + j] * w;
+
+
+			if (test_T > 0.5f) {
+				atomicAdd(&(contributions[collected_id[j]]), w);
+			}
 			
-
-
 			T = test_T;
 
 			// Keep track of last range entry to update this
@@ -616,64 +619,8 @@ renderCUDA(
 		out_depth[pix_id] = normalize_depth ? D / (1 - T) : D + T * 10;
 		out_opac[pix_id] = 1 - T;
 		if (normalize_depth) final_D[pix_id] = D;
-
-		// // Calculate depth variance along a ray
-		// float D_var = 0, D_mean = D / (1 - T), D_dif_mean, D_dif_mid, D_max = 5;
-		// float D_mid = D_buffer[(int)(min(D_buffer_size, blend_count) / 2)];
-		// for (int i = 0; i < min(D_buffer_size, blend_count); i++) {
-		// 	D_dif_mean = (D_buffer[i] - D_mean) / D_max;
-		// 	D_var += D_dif_mean * D_dif_mean * W_buffer[i];
-		// 	// update cutoff value
-		// 	if (update_cutoff) {
-		// 		float cutoff_thrsh = config[5];
-		// 		D_dif_mid = (D_mid - D_buffer[i]);
-		// 		if (fabsf(D_dif_mid) > cutoff_thrsh) {
-		// 			// printf("%.5f ", D_dif_mid);
-		// 			out_opac[pix_id] = 0;
-		// 			return;
-		// 			// project to plane
-		// 			// cut axis
-		// 			// write use pid
-		// 			// printf("updating cutoffs\n");
-		// 			float dx = axDif_buffer[i * 2 + 0];
-		// 			float dy = axDif_buffer[i * 2 + 1];
-		// 			int pid = pid_buffer[i];
-		// 			if (dx < 0) {
-		// 				atomicMax_f32(&cutoff[pid * 4 + 0], dx);
-		// 				// float old = cutoff[pid * 4 + 0];
-		// 				// while (old < dx) {
-		// 				// 	old = atomicCAS_f32(&cutoff[pid * 4 + 0], old, dx);
-		// 				// }
-		// 			}
-		// 			else {
-		// 				atomicMin_f32(&cutoff[pid * 4 + 1], dx);
-		// 				// float old = cutoff[pid * 4 + 1];
-		// 				// while (old > dx) {
-		// 				// 	old = atomicCAS_f32(&cutoff[pid * 4 + 1], old, dx);
-		// 				// }
-		// 			}
-		// 			if (dy < 0) {
-		// 				atomicMax_f32(&cutoff[pid * 4 + 2], dy);
-		// 				// float old = cutoff[pid * 4 + 0];
-		// 				// while (old < dx) {
-		// 				// 	old = atomicCAS_f32(&cutoff[pid * 4 + 0], old, dx);
-		// 				// }
-		// 			}
-		// 			else {
-		// 				atomicMin_f32(&cutoff[pid * 4 + 3], dy);
-		// 				// float old = cutoff[pid * 4 + 1];
-		// 				// while (old > dx) {
-		// 				// 	old = atomicCAS_f32(&cutoff[pid * 4 + 1], old, dx);
-		// 				// }
-		// 			}
-		// 		}
-		// 	}
-		// }
-	
 	}
-	// else {
-	// 	out_depth[pix_id] = 0; // write 0 to depth, use it to compute mask
-	// }
+	
 }
 
 void FORWARD::render(
@@ -706,6 +653,7 @@ void FORWARD::render(
 	float* out_normal,
 	float* out_depth,
 	float* out_opac,
+	float* contributions,
 	// float* out_rayVar,
 	float* config)
 {
@@ -734,7 +682,7 @@ void FORWARD::render(
 		final_T_cut,
 		n_contrib_cut,
 		bg_color,
-		out_color, out_normal, out_depth, out_opac, //out_rayVar, 
+		out_color, out_normal, out_depth, out_opac, contributions, //out_rayVar, 
 		config);
 }
 

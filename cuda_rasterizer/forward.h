@@ -88,6 +88,7 @@ namespace FORWARD
 		float* out_normal,
 		float* out_depth,
 		float* out_opac,
+		float* contributions,
 		float* config);
 }
 

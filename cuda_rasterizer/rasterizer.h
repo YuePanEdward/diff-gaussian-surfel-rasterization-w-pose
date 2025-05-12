@@ -57,6 +57,7 @@ namespace CudaRasterizer
 			float* out_depth,
 			float* out_opac,
 			int* radii = nullptr,
+			float* contributions = nullptr,
 			bool debug = false);
 
 		static void backward(
@@ -72,6 +73,7 @@ namespace CudaRasterizer
 			const float* cov3D_precomp,
 			const float* viewmatrix,
 			const float* projmatrix,
+			const float* projmatrix_raw,
 			const float* campos,
 			const float* prcppoint,
 			const float* patchbbox,
@@ -87,7 +89,6 @@ namespace CudaRasterizer
 			float* dL_dmean2D,
 			float* dL_dconic,
 			float* dL_dopacity,
-			// float* dL_dcutoff,
 			float* dL_dcolor,
 			float* dL_dnormal,
 			float* dL_ddepth,
@@ -96,9 +97,7 @@ namespace CudaRasterizer
 			float* dL_dsh,
 			float* dL_dscale,
 			float* dL_drot,
-			float* dL_dviewmat,
-			float* dL_dprojmat,
-			float* dL_dcampos,
+			float* dL_dtau,
 			bool debug,
 			float* config);
 	};

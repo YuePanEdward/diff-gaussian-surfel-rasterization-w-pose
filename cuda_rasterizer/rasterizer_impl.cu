@@ -233,6 +233,7 @@ int CudaRasterizer::Rasterizer::forward(
 	float* out_depth,
 	float* out_opac,
 	int* radii,
+	float* contributions,
 	bool debug)
 {
 	const float focal_y = height / (2.0f * tan_fovy);
@@ -365,7 +366,7 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.accum_alpha_cut,
 		imgState.n_contrib_cut,
 		background,
-		out_color, out_normal, out_depth, out_opac, 
+		out_color, out_normal, out_depth, out_opac, contributions,
 		config), debug)
 	return num_rendered;
 }
@@ -385,6 +386,7 @@ void CudaRasterizer::Rasterizer::backward(
 	const float* cov3D_precomp,
 	const float* viewmatrix,
 	const float* projmatrix,
+	const float* projmatrix_raw,
 	const float* campos,
 	const float* prcppoint,
 	const float* patchbbox,
@@ -408,9 +410,7 @@ void CudaRasterizer::Rasterizer::backward(
 	float* dL_dsh,
 	float* dL_dscale,
 	float* dL_drot,
-	float* dL_dviewmat,
-	float* dL_dprojmat,
-	float* dL_dcampos,
+	float* dL_dtau,
 	bool debug, 
 	float* config)
 {
@@ -481,6 +481,7 @@ void CudaRasterizer::Rasterizer::backward(
 		cov3D_ptr,
 		viewmatrix,
 		projmatrix,
+		projmatrix_raw,
 		focal_x, focal_y,
 		tan_fovx, tan_fovy,
 		(glm::vec3*)campos,
@@ -493,7 +494,7 @@ void CudaRasterizer::Rasterizer::backward(
 		dL_dcov3D,
 		dL_dsh,
 		(glm::vec3*)dL_dscale,
-		(glm::vec4*)dL_drot, 
-		dL_dviewmat, dL_dprojmat, dL_dcampos,
+		(glm::vec4*)dL_drot,
+		dL_dtau, 
 		config), debug)
 }
